@@ -1,1 +1,1 @@
-# Bic-Contest-2019
+# Big Contest 2019

@@ -16,10 +16,10 @@ main_char <- train_activity %>% filter(acc_id %in% allday_id) %>%
   group_by(acc_id, char_id) %>% summarise(playtime = sum(playtime))
 main_char <- main_char %>% group_by(acc_id) %>% filter(playtime == max(playtime))
 
-# write.csv(main_char, 'preprocess/train_main_char.csv', row.names = FALSE)
+# write.csv(main_char, 'preprocess/train_main_char_hk.csv', row.names = FALSE)
 
 # train_activity 변수 요약 ---------------------------------------------------------------------------
-# main_char <- read_csv('preprocess/train_main_char.csv')
+# main_char <- read_csv('preprocess/train_main_char_hk.csv')
 
 train_activity_main <- train_activity %>% 
   filter(acc_id %in% main_char$acc_id, char_id %in% main_char$char_id)

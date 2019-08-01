@@ -37,7 +37,7 @@ train_label %>% filter(survival_time != 64) %>%
 
 
 # CSV 저장 ----------------------------------------------------------------------------------
-write.csv(train_activity, 'train_activity_preprocess_1.csv', row.names = FALSE)
-write.csv(train_label, 'train_label_preprocess_1.csv', row.names = FALSE)
+write.csv(train_activity, 'preprocess/train_activity_preprocess_1.csv', row.names = FALSE)
+write.csv(train_label, 'preprocess/train_label_preprocess_1.csv', row.names = FALSE)
 
 

@@ -12,7 +12,9 @@ train_main <- train_main %>% left_join(select(main_combat, -6))
 
 sapply(train_main, function(x) sum(is.na(x)))
 
-train_main <- train_main %>% rename(pledge_combat_play_time = combat_play_time)
+train_main <- train_main %>% 
+  rename(pledge_combat_char_cnt = combat_char_cnt,
+         pledge_combat_play_time = combat_play_time)
 summary(train_main)
 colnames(train_main)
 

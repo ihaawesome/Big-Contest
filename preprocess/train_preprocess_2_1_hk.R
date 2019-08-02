@@ -82,7 +82,7 @@ activity_main <- activity_main %>%
 # main char & pledge join 
 train_main_char_pledge <- main_char %>% 
   left_join(train_pledge, by = c("acc_id", "char_id")) %>% 
-  select(day, acc_id, char_id, pledge_id, pledge_combat_cnt, combat_play_time)   
+  select(day, acc_id, char_id, pledge_id, combat_char_cnt, combat_play_time)   
 
 # 혈맹 가입한 day가 많은 혈맹으로 대표 혈맹 구분
 df <- train_main_char_pledge %>% 
@@ -96,19 +96,15 @@ df <- df[-which(df$index==1),]
 train_main_char_pledge <- df %>% 
   left_join(train_main_char_pledge, c("acc_id", "char_id", "pledge_id")) %>% 
   group_by(acc_id, char_id, pledge_id) %>% 
-  summarize(pledge_combat_cnt = sum(pledge_combat_cnt), 
-            combat_play_time = sum(combat_play_time)) %>% 
-  mutate(pledge_combat_cnt_change = pledge_combat_cnt/0.0018212678849497353,
-         combat_play_time_change = combat_play_time/0.00011583103758588046)
+  summarize(combat_char_cnt = sum(combat_char_cnt), 
+            combat_play_time = sum(combat_play_time)) 
 
 train_main_char_pledge <- train_main_char_pledge %>%
-  mutate(pledge_combat_cnt = ifelse(is.na(pledge_combat_cnt), 0, pledge_combat_cnt),
-         combat_play_time = ifelse(is.na(combat_play_time), 0, combat_play_time),
-         pledge_combat_cnt_change = ifelse(is.na(pledge_combat_cnt_change), 0, pledge_combat_cnt_change),
-         combat_play_time_change = ifelse(is.na(combat_play_time_change), 0, combat_play_time_change))
+  mutate(combat_char_cnt = ifelse(is.na(combat_char_cnt), 0, combat_char_cnt),
+         combat_play_time = ifelse(is.na(combat_play_time), 0, combat_play_time))
 
 # CSV 저장
-# write.csv(train_main_char_pledge, 'preprocess/train_main_pledge.csv', row.names = FALSE)
+write.csv(train_main_char_pledge, 'preprocess/train_main_pledge.csv', row.names = FALSE)
 rm(df)
 
 

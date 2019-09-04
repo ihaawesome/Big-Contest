@@ -1,4 +1,4 @@
-# setwd('C:/Users/HK/Desktop/GitHub/Big-Contest')
+setwd('C:/Users/HK/Desktop/GitHub/Big-Contest')
 library(survival)
 library(tidyverse)
 
@@ -12,6 +12,11 @@ train_label <- read_csv('preprocess/train_label.csv')
 KMfit <- survfit(Surv(survival_time, churn) ~ 1, train_label)
 ggplot() + 
   geom_step(aes(KMfit$time, KMfit$surv), size = 1) +
+  labs(x = 't', y = 'S(t)', title = 'Kaplan-Meier Curve')
+
+# Weibull Q-Q Plot -> ALT
+ggplot() + 
+  geom_line(aes(log(KMfit$time), log(-log(KMfit$surv))), size = 1) +
   labs(x = 't', y = 'S(t)', title = 'Kaplan-Meier Curve')
 
 # Cumulative Hazard
@@ -44,6 +49,12 @@ gindex <- xdata %>%
 gindex <- which(train_label$acc_id %in% gindex$acc_id)
 KMplot.groups(gindex, 'risk_ratio')
 
+# amount_spent
+gindex <- xdata %>% 
+  filter(amount_spent > median(amount_spent)) %>% select(acc_id) %>% distinct()
+gindex <- which(train_label$acc_id %in% gindex$acc_id)
+KMplot.groups(gindex, 'amount_spent')
+
 # playtime
 gindex <- xdata %>% 
   filter(playtime > median(playtime)) %>% select(acc_id) %>% distinct()
@@ -56,11 +67,17 @@ gindex <- xdata %>%
 gindex <- which(train_label$acc_id %in% gindex$acc_id)
 KMplot.groups(gindex, 'total_exp')
 
-# amount_spent
+# party_exp_per
 gindex <- xdata %>% 
-  filter(amount_spent > median(amount_spent)) %>% select(acc_id) %>% distinct()
+  filter(party_exp_per > median(party_exp_per)) %>% select(acc_id) %>% distinct()
 gindex <- which(train_label$acc_id %in% gindex$acc_id)
-KMplot.groups(gindex, 'amount_spent')
+KMplot.groups(gindex, 'party_exp_per')
+
+# death
+gindex <- xdata %>% 
+  filter(death > median(death)) %>% select(acc_id) %>% distinct()
+gindex <- which(train_label$acc_id %in% gindex$acc_id)
+KMplot.groups(gindex, 'death')
 
 # fishing
 gindex <- xdata %>% 
@@ -103,6 +120,12 @@ gindex <- xdata %>%
   filter(combat_cnt > median(combat_cnt)) %>% select(acc_id) %>% distinct()
 gindex <- which(train_label$acc_id %in% gindex$acc_id)
 KMplot.groups(gindex, 'combat_cnt')
+
+# num_opponent
+gindex <- xdata %>% 
+  filter(num_opponent > median(num_opponent)) %>% select(acc_id) %>% distinct()
+gindex <- which(train_label$acc_id %in% gindex$acc_id)
+KMplot.groups(gindex, 'num_opponent')
 
 # play_char_cnt_pld
 gindex <- xdata %>% 

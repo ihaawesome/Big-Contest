@@ -218,14 +218,14 @@ make.data <- function(set = 'train', save = FALSE) {
   # Payment 
   train_week_2 <- train_table %>%
     group_by(acc_id, week) %>%
-    summarize(n_payment = n(), max_payment = max(amount_spent))
+    summarize(n_payment = sum(amount_spent > 0), max_payment = max(amount_spent))
   
   # Total
   train_week_3 <- train_table %>% group_by(acc_id, week) %>% 
     summarize_all(mean) %>% select(-day) %>% rename(mean_payment = amount_spent)
   
   train_week <- train_week_1 %>% left_join(train_week_2) %>% left_join(train_week_3)
-  if (set == 'train') write.csv(cor(train_week[,-(1:2)]), 'etc/correlation.csv')
+  if (set == 'train') { write.csv(cor(train_week[,-(1:2)]), 'etc/correlation.csv') }
   
   train_week <- train_week %>% melt(id = c('acc_id', 'week'))
   train_week <- train_week %>% 

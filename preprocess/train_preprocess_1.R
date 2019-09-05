@@ -225,7 +225,7 @@ make.data <- function(set = 'train', save = FALSE) {
     summarize_all(mean) %>% select(-day) %>% rename(mean_payment = amount_spent)
   
   train_week <- train_week_1 %>% left_join(train_week_2) %>% left_join(train_week_3)
-  if (set = 'train') write.csv(cor(train_week[,-(1:2)]), 'etc/correlation.csv')
+  if (set == 'train') write.csv(cor(train_week[,-(1:2)]), 'etc/correlation.csv')
   
   train_week <- train_week %>% melt(id = c('acc_id', 'week'))
   train_week <- train_week %>% 

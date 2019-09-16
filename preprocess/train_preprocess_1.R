@@ -1,4 +1,3 @@
-setwd('C:/Users/HK/Desktop/GitHub/Big-Contest')
 options(scipen = 100)
 library(tidyverse)
 library(lubridate)

@@ -13,6 +13,11 @@ KMfit <- survfit(Surv(survival_time, churn) ~ 1, train_label)
 ggplot() + 
   geom_step(aes(KMfit$time, KMfit$surv), size = 1) +
   labs(x = 't', y = 'S(t)', title = 'Kaplan-Meier Curve')
+KMtable <- data.frame(survival_time = KMfit$time, survival_prob = KMfit$surv)
+train_label_surv <- train_label %>% 
+  left_join(KMtable) %>% 
+  select(acc_id, first_week, survival_time, churn, survival_prob, amount_spent, payment)
+write.csv(train_label_surv, 'model/train_label_surv.csv', row.names = F)
 
 # Weibull Q-Q Plot -> ALT
 ggplot() + 
@@ -25,7 +30,7 @@ ggplot() +
   labs(x = 't', y = 'H(t)', title = 'Kaplan-Meier Curve')
 
 
-# With Predictors --------------------------------------------------------------------------------------
+# With Predictors ( EDA ) ------------------------------------------------------------------------------
 xdata <- read_csv('preprocess/train_day.csv')
 colnames(xdata)
 

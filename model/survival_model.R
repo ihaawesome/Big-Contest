@@ -1,7 +1,10 @@
-setwd('C:/Users/HK/Desktop/GitHub/Big-Contest')
 library(tidyverse)
 library(survival)
 library(randomForestSRC)
+library(glue)
+library(MLmetrics)
+
+RMSE <- function(pred, true) sqrt(mean((pred - true)**2))
 
 theme_set(
   theme_light() +
@@ -28,51 +31,17 @@ tr1 <- sample(nrow(data.w1), size = nrow(data.w1)*0.8)
 # COXPH ----------------------------------------------------------------------------------------
 model.cox.w1 <- coxph(Surv(survival_time, churn) ~ ., data = data.w1[tr1, -1])
 model.cox.w1 <- step(model.cox.w1, direction = 'both')
-# quick
-# model.cox.w1 <- coxph(
-#   Surv(survival_time, churn) ~ n_day_w1 + n_day_w3 +
-#   n_day_w4 + max_diff_day_w1 + max_diff_day_w2 + max_diff_day_w3 + 
-#   max_diff_day_w4 + max_payment_w2 + max_payment_w3 + max_payment_w4 + 
-#   mean_payment_w2 + mean_payment_w3 + n_payment_w3 + n_payment_w4 + 
-#   risk_ratio_w1 + risk_ratio_w2 + char_cnt_act_w1 + char_cnt_act_w3 + 
-#   char_cnt_act_w4 + playtime_w1 + playtime_w3 + playtime_w4 + 
-#   total_exp_w1 + total_exp_w2 + total_exp_w3 + total_exp_w4 + 
-#   party_exp_per_w1 + party_exp_per_w3 + fishing_w1 + private_shop_w1 + 
-#   private_shop_w3 + private_shop_w4 + death_w1 + death_w2 + 
-#   game_money_change_w3 + purchase_ex_w4 + purchase_pr_w2 + 
-#   sum_level_w1 + sum_level_w4 + combat_cnt_w3 + combat_cnt_w4 + 
-#   combat_play_time_pld_w1 + combat_play_time_pld_w4 + play_char_cnt_pld_w1 + 
-#   play_char_cnt_pld_w4 + pledge_combat_cnt_pld_w1 + pledge_combat_cnt_pld_w4, 
-#   data = data.w1[tr, -1]
-# )
-summary(model.cox.w1)
 
-pred.cox.w1 <- survfit(model.cox.w1, newdata = data.w1[-tr1,])
+summary(model.cox.w1)
+cox.final.w1 <- model.cox.w1$formula
+
+pred.cox.w1 <- survfit(model.cox.w1, newdata = data.w1[-tr1, -1])
 pred.s.cox.w1 <- data.frame(t = pred.cox.w1$time, pred.cox.w1$surv)
 
+cind.cox.w1 <- 1 - concordance(model.cox.w1)$concordance
+
 # RSF --------------------------------------------------------------------------------------------------
-p = ncol(data.w1) - 3
-rf.grid1 <- expand.grid(ntree = c(500, 1000),
-                        mtry = c(sqrt(p), p),
-                        nodesize = c(5, 15),
-                        OOBerror = 0)
-for (i in 1:nrow(rf.grid1)) {
-  m <- rfsrc(Surv(survival_time, churn) ~ ., data.w1[tr1, -1], importance = TRUE,
-             ntree = rf.grid1$ntree[i], mtry = rf.grid1$mtry[i], nodesize = rf.grid1$nodesize[i])
-  rf.grid1$OOBerror[i] <- last(m$err.rate)
-}
-rf.grid1 <- rf.grid1 %>% arrange(OOBerror)
-model.rsf.w1 <- rfsrc(Surv(survival_time, churn) ~ ., data.w1[tr1, -1], importance = TRUE,
-                      ntree = rf.grid1$ntree[1], mtry = rf.grid1$mtry[1], nodesize = rf.grid1$nodesize[1])
-
-pred.rsf.w1 <- predict(model.rsf.w1, data.w1[-tr1,])
-pred.s.rsf.w1 <- data.frame(t = pred.rsf.w1$time.interest, t(pred.rsf.w1$survival))
-
-# variable importance
-data.frame(variable = names(model.rsf.w1$importance), 
-           importance = model.rsf.w1$importance)[1:10,] %>%
-  ggplot() + geom_col(aes(fct_reorder(variable, importance), importance), fill = 'Dark Slate Blue') + 
-  labs(x = 'variable') + coord_flip()
+# X
 
 
 # Summary 1 --------------------------------------------------------------------------------------------
@@ -81,11 +50,9 @@ pred.s.km.w1 <- data.frame(t= km.fit.w1$time, s.prob = km.fit.w1$surv, H = km.fi
 
 ggplot() + geom_step(aes(pred.s.km.w1$t, pred.s.km.w1$s.prob, color = 'K-M')) +
   geom_step(aes(pred.s.cox.w1$t, rowMeans(pred.s.cox.w1[,-1]), color = 'COXPH')) +
-  geom_step(aes(pred.rsf.w1$t, rowMeans(pred.s.rsf.w1[,-1]), color = 'RSF')) +
   scale_color_manual('', values = c('K-M' = 'black', 'COXPH' = 'red', 'RSF' = 'blue')) +
   labs(x = 'time', y = 'survival.prob', title = 'Week 4: Predicted Survival Probabilities') +
   theme(legend.position = 'top')
-
 
 
 # ------------------------------------------------------------------------------------------------------
@@ -101,7 +68,7 @@ model.cox.w4 <- coxph(Surv(survival_time, churn) ~ ., data = data.w4[tr4, -1])
 model.cox.w4 <- step(model.cox.w4, direction = 'both')
 summary(model.cox.w4)
 
-pred.cox.w4 <- survfit(model.cox.w4, newdata = data.w4[-tr4,])
+pred.cox.w4 <- survfit(model.cox.w4, data.w4[-tr4, -1])
 pred.s.cox.w4 <- data.frame(t = pred.cox.w4$time, pred.cox.w4$surv)
 
 
@@ -120,31 +87,39 @@ rf.grid4 <- rf.grid4 %>% arrange(OOBerror)
 model.rsf.w4 <- rfsrc(Surv(survival_time, churn) ~ ., data.w4[tr4, -1], importance = TRUE,
                       ntree = rf.grid4$ntree[1], mtry = rf.grid4$mtry[1], nodesize = rf.grid4$nodesize[1])
 
-pred.rsf.w4 <- predict(model.rsf.w4, data.w4[-tr4,])
+pred.rsf.w4 <- predict(model.rsf.w4, data.w4[-tr4, -1])
 pred.s.rsf.w4 <- data.frame(t = pred.rsf.w4$time.interest, t(pred.rsf.w4$survival))
 
 # variable importance
 data.frame(variable = names(model.rsf.w4$importance), 
            importance = model.rsf.w4$importance)[1:10,] %>%
-  ggplot() + geom_col(aes(fct_reorder(variable, importance), importance), fill = 'Dark Slate Blue') + 
-  labs(x = 'variable') + coord_flip()
+  ggplot() + 
+  geom_col(aes(fct_reorder(str_remove(variable, '_w4'), importance), importance, fill = importance)) +
+  scale_fill_gradient(low = '#18bec5', high = 'black') +
+  theme(legend.position = '', axis.text.x = element_blank()) +
+  labs(x = '', y = '') + coord_flip()
+# playtime, n_day, max_payment, n_payment, mean_payment, total_exp
 
 
 # Summary 4 --------------------------------------------------------------------------------------------
-km.fit.w4 <- survfit(Surv(survival_time, churn) ~ 1, data.w4[-tr4, -1])
+km.fit.w4 <- survfit(Surv(survival_time, churn) ~ 1, data.w4[-tr4,])
 pred.s.km.w4 <- data.frame(t= km.fit.w4$time, s.prob = km.fit.w4$surv, H = km.fit.w4$cumhaz)
 
 ggplot() + geom_step(aes(pred.s.km.w4$t, pred.s.km.w4$s.prob, color = 'K-M')) +
   geom_step(aes(pred.s.cox.w4$t, rowMeans(pred.s.cox.w4[,-1]), color = 'COXPH')) +
   geom_step(aes(pred.rsf.w4$t, rowMeans(pred.s.rsf.w4[,-1]), color = 'RSF')) +
   scale_color_manual('', values = c('K-M' = 'black', 'COXPH' = 'red', 'RSF' = 'blue')) +
-  labs(x = 'time', y = 'survival.prob', title = 'Week 4: Predicted Survival Probabilities') +
+  labs(x = 'time', y = 'survival.prob', title = 'Week 4: Predicted Survival Function') +
   theme(legend.position = 'top')
 
+cind.cox.w4 <- 1 - concordance(model.cox.w4)$concordance
+cind.rsf.w4 <- mean(model.rsf.w4$err.rate, na.rm = T)
+c(cind.cox.w4, cind.rsf.w4)
 
 # ------------------------------------------------------------------------------------------------------
 # week 2-3 model ---------------------------------------------------------------------------------------
-data.w23 <- xdata %>% filter(first_week %in% (2:3)) %>% select(-ends_with('w1')) %>%
+data.w23 <- xdata %>% filter(first_week %in% (2:3)) %>% 
+  select(-ends_with('w1'), -first_week) %>%
   left_join(select(ydata, acc_id, survival_time, churn))
 
 set.seed(23)
@@ -155,11 +130,12 @@ model.cox.w23 <- coxph(Surv(survival_time, churn) ~ ., data = data.w23[tr23, -1]
 model.cox.w23 <- step(model.cox.w23, direction = 'both')
 summary(model.cox.w23)
 
+cox.final.w23 <- model.cox.w23$formula
 pred.cox.w23 <- survfit(model.cox.w23, newdata = data.w23[-tr23,])
 pred.s.cox.w23 <- data.frame(t = pred.cox.w23$time, pred.cox.w23$surv)
 
 
-# RSF  ----------------------------------------------------------------------------------------------------------
+# RSF  -------------------------------------------------------------------------------------------------
 p = ncol(data.w23) - 3
 rf.grid23 <- expand.grid(ntree = c(500, 1000),
                          mtry = c(sqrt(p), p),
@@ -171,20 +147,22 @@ for (i in 1:nrow(rf.grid23)) {
   rf.grid23$OOBerror[i] <- last(m$err.rate)
 }
 rf.grid23 <- rf.grid23 %>% arrange(OOBerror)
-model.rsf.w23 <- rfsrc(Surv(survival_time, churn) ~ ., data.w23[tr23, -1], importance = TRUE,
+model.rsf.w23 <- rfsrc(cox.final.w23, data.w23[tr23, -1], importance = TRUE,
                        ntree = rf.grid23$ntree[1], mtry = rf.grid23$mtry[1], nodesize = rf.grid23$nodesize[1])
 # variable importance
 data.frame(variable = names(model.rsf.w23$importance), 
            importance = model.rsf.w23$importance)[1:10,] %>%
-  ggplot() + geom_col(aes(fct_reorder(variable, importance), importance)) + 
-  labs(x = 'variable') + coord_flip()
+  ggplot() + 
+  geom_col(aes(fct_reorder(variable, importance), importance, fill = importance)) +
+  scale_fill_gradient(low = '#18bec5', high = 'black') +
+  theme(legend.position = '', axis.text.x = element_blank()) +
+  labs(x = '', y = '') + coord_flip()
 
-
-pred.rsf.w23 <- predict(model.rsf.w23, data.w23[-tr23,])
+pred.rsf.w23 <- predict(model.rsf.w23)
 pred.s.rsf.w23 <- data.frame(t = pred.rsf.w23$time.interest, t(pred.rsf.w23$survival))
 
 
-# Summary 23 ---------------------------------------------------------------------------------------------------
+# Summary 23 -------------------------------------------------------------------------------------------
 km.fit.w23 <- survfit(Surv(survival_time, churn) ~ 1, data.w23[-tr23, -1])
 pred.s.km.w23 <- data.frame(t= km.fit.w23$time, s.prob = km.fit.w23$surv, H = km.fit.w23$cumhaz)
 
@@ -195,11 +173,15 @@ ggplot() + geom_step(aes(pred.s.km.w23$t, pred.s.km.w23$s.prob, color = 'K-M')) 
   labs(x = 'time', y = 'survival.prob', title = 'Week 2-3: Predicted Survival Probabilites') +
   theme(legend.position = 'top')
 
+cind.cox.w23 <- 1 - concordance(model.cox.w23)$concordance
+cind.rsf.w23 <- mean(model.rsf.w23$err.rate, na.rm = T)
+c(cind.cox.w23, cind.rsf.w23)
 
 
 
-# 생존확률 기준 찾기
+# 생존확률 기준 시간 찾기 -------------------------------------------------------------------------------
 threshold <- function(pred.s, s) {
+  
   pred.t <- as.data.frame(pred.s) %>% gather(obs, s.prob, -t) 
   obs <- pred.t %>% select(obs) %>% distinct()
   pred.t <- pred.t %>%
@@ -211,67 +193,76 @@ threshold <- function(pred.s, s) {
   return(pred.t)
 }
 
-threshold.curve <- function(data, tr, pred.s) {
-  s <- seq(0.01, 0.99, by = 0.01)
-  ch <- matrix(0, nrow = length(s), ncol = nrow(data) - length(tr))
-  acc <- c()
-  for (i in 1:length(s)) {
-    ch[i,] <- threshold(pred.s, s[i])$churn
-    acc[i] <- sum(ch[i,] == data$churn[-tr]) / length(ch[i,])
-  }
-  ggplot() + geom_step(aes(s, acc), color = 'dark slate blue', size = 1) + 
-    geom_vline(aes(xintercept = s[which.max(acc)]), linetype = 2) +
-    labs(x = 'survival.prob', y = 'accuracy', 
-         title = glue('{round(max(acc), 3)*100}%'),
-         subtitle = glue('with prob = {s[which.max(acc)]}'))
-}
+pred.t.cox.w1 <- threshold(pred.s.cox.w1, 0.5)
+RMSE(pred.t.cox.w1$pred.t, data.w1$survival_time[-tr1])
 
-threshold.curve(data.w1, tr1, pred.s.cox.w1)
-threshold.curve(data.w23, tr23, pred.s.cox.w23)
-threshold.curve(data.w4, tr4, pred.s.cox.w4)
+pred.t.cox.w23 <- threshold(pred.s.cox.w23, 0.5)
+RMSE(pred.t.cox.w23$pred.t, data.w23$survival_time[-tr23])
+
+pred.t.rsf.w4 <- threshold(pred.s.rsf.w4, 0.5)
+RMSE(pred.t.rsf.w4$pred.t, data.w4$survival_time[-tr4])
 
 
+# test 데이터 예측
+xtest1 <- read_csv('preprocess/test1_week.csv')
+xtest1.w1 <- xtest1 %>% filter(first_week == 1) %>% select(-first_week) 
+xtest1.w23 <- xtest1 %>% filter(first_week %in% (2:3)) %>% select(-first_week) 
+xtest1.w4 <- xtest1 %>% filter(first_week == 4) %>% select(-first_week) 
+
+xtest2 <- read_csv('preprocess/test2_week.csv')
+xtest2.w1 <- xtest2 %>% filter(first_week == 1) %>% select(-first_week) 
+xtest2.w23 <- xtest2 %>% filter(first_week %in% (2:3)) %>% select(-first_week) 
+xtest2.w4 <- xtest2 %>% filter(first_week == 4) %>% select(-first_week) 
+
+# test1
+pred.test1.w1 <- survfit(model.cox.w1, newdata = xtest1.w1)
+pred.s.test1.w1 <- data.frame(t = pred.test1.w1$time, pred.test1.w1$surv)
+pred.t.test1.w1 <- threshold(pred.s.test1.w1, 0.35)
+ggplot(pred.t.test1.w1) + geom_bar(aes(pred.t))
+
+pred.test1.w23 <- survfit(model.cox.w23, newdata = xtest1.w23)
+pred.s.test1.w23 <- data.frame(t = pred.test1.w23$time, pred.test1.w23$surv)
+pred.t.test1.w23 <- threshold(pred.s.test1.w23, 0.3)
+ggplot(pred.t.test1.w23) + geom_bar(aes(pred.t))
+
+pred.test1.w4 <- predict(model.rsf.w4, xtest1.w4)
+pred.s.test1.w4 <- data.frame(t = pred.test1.w4$time.interest, t(pred.test1.w4$survival))
+pred.t.test1.w4 <- threshold(pred.s.test1.w4, 0.35)
+ggplot(pred.t.test1.w4) + geom_bar(aes(pred.t))
+
+# test2
+pred.test2.w1 <- survfit(model.cox.w1, newdata = xtest2.w1)
+pred.s.test2.w1 <- data.frame(t = pred.test2.w1$time, pred.test2.w1$surv)
+pred.t.test2.w1 <- threshold(pred.s.test2.w1, 0.35)
+ggplot(pred.t.test2.w1) + geom_bar(aes(pred.t))
+
+pred.test2.w23 <- survfit(model.cox.w23, newdata = xtest2.w23)
+pred.s.test2.w23 <- data.frame(t = pred.test2.w23$time, pred.test2.w23$surv)
+pred.t.test2.w23 <- threshold(pred.s.test2.w23, 0.3)
+ggplot(pred.t.test2.w23) + geom_bar(aes(pred.t))
+
+pred.test2.w4 <- predict(model.rsf.w4, xtest2.w4)
+pred.s.test2.w4 <- data.frame(t = pred.test2.w4$time.interest, t(pred.test2.w4$survival))
+pred.t.test2.w4 <- threshold(pred.s.test2.w4, 0.35)
+ggplot(pred.t.test2.w4) + geom_bar(aes(pred.t))
 
 
+pred.t.test1.w1 <- pred.t.test1.w1 %>% transmute(acc_id = xtest1.w1$acc_id, survival_time = pred.t) 
+pred.t.test1.w23 <- pred.t.test1.w23 %>% transmute(acc_id = xtest1.w23$acc_id, survival_time = pred.t) 
+pred.t.test1.w4 <- pred.t.test1.w4 %>% transmute(acc_id = xtest1.w4$acc_id, survival_time = pred.t) 
 
+pred.t.test2.w1 <- pred.t.test2.w1 %>% transmute(acc_id = xtest2.w1$acc_id, survival_time = pred.t) 
+pred.t.test2.w23 <- pred.t.test2.w23 %>% transmute(acc_id = xtest2.w23$acc_id, survival_time = pred.t) 
+pred.t.test2.w4 <- pred.t.test2.w4 %>% transmute(acc_id = xtest2.w4$acc_id, survival_time = pred.t) 
 
+pred.t.test1 <- pred.t.test1.w1 %>% 
+  full_join(pred.t.test1.w23) %>% full_join(pred.t.test1.w4) %>%
+  arrange(acc_id)
+pred.t.test2 <- pred.t.test2.w1 %>% 
+  full_join(pred.t.test2.w23) %>% full_join(pred.t.test2.w4) %>%
+  arrange(acc_id)
 
-# ALT (망함) ----------------------------------------------------------------------------------------------
-# Week 1 --------------------------------------------------------------------------------------------------
-# model.alt.w1 <- survreg(Surv(survival_time, churn) ~ ., dist = 'weibull', data.w1[tr1, -1])
-# model.alt.w1 <- step(model.alt.w1, direction = 'both')
-# summary(model.alt.w1)
-# quick
-# model.alt.w1 <- survreg(
-#   Surv(survival_time, churn) ~ n_day_w1 + n_day_w3 +
-#   n_day_w4 + max_diff_day_w1 + max_diff_day_w2 + max_diff_day_w3 +
-#   max_diff_day_w4 + max_payment_w2 + max_payment_w3 + max_payment_w4 +
-#   mean_payment_w2 + mean_payment_w3 + n_payment_w3 + n_payment_w4 +
-#   risk_ratio_w1 + risk_ratio_w2 + char_cnt_act_w1 + playtime_w1 +
-#   playtime_w3 + playtime_w4 + total_exp_w1 + total_exp_w2 +
-#   total_exp_w3 + total_exp_w4 + party_exp_per_w1 + party_exp_per_w2 +
-#   party_exp_per_w3 + fishing_w1 + private_shop_w1 + private_shop_w3 +
-#   private_shop_w4 + death_w1 + death_w2 + game_money_change_w3 +
-#   purchase_ex_w4 + purchase_pr_w2 + sum_level_w1 + sum_level_w4 +
-#   combat_cnt_w3 + combat_cnt_w4 + combat_play_time_pld_w1 +
-#   combat_play_time_pld_w2 + combat_play_time_pld_w4 + play_char_cnt_pld_w1 +
-#   play_char_cnt_pld_w2 + play_char_cnt_pld_w4 + pledge_combat_cnt_pld_w1 +
-#   pledge_combat_cnt_pld_w2 + pledge_combat_cnt_pld_w4,
-#   data = data.w1[tr, -1], dist = "weibull"
-# )
-# pred.alt.w1 <- exp(predict(model.alt.w1, type = 'lp'))
-
-# Week 23 -------------------------------------------------------------------------------------------------
-# model.alt.w23 <- survreg(Surv(survival_time, churn) ~ ., dist = 'weibull', data.w23[tr23, -1])
-# model.alt.w23 <- step(model.alt.w23, direction = 'both')
-# summary(model.alt.w23)
-# 
-# pred.alt.w23 <- predict(model.alt.w23, data.w23[-tr23, -1], type = 'quantile', p = 0.5)
-
-# Week 4 --------------------------------------------------------------------------------------------------
-# model.alt.w4 <- survreg(Surv(survival_time, churn) ~ ., dist = 'weibull', data.w4[tr4, -1])
-# model.alt.w4 <- step(model.alt.w4, direction = 'both')
-# summary(model.alt.w4)
-# pred.alt.w4 <- predict(model.alt.w4, data.w4[-tr4, -1], type = 'quantile', p = 0.5)
+write.csv(pred.t.test1, 'predict/test1_predict_survival.csv', row.names = FALSE)
+write.csv(pred.t.test2, 'predict/test2_predict_survival.csv', row.names = FALSE)
 
 

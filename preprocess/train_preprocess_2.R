@@ -1,4 +1,3 @@
-setwd('C:/Users/HK/Desktop/GitHub/Big-Contest')
 library(tidyverse)
 library(lubridate)
 library(glue)

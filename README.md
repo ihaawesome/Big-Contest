@@ -1,4 +1,4 @@
-﻿##  2019 빅콘테스트 퓨처스리그
+﻿#  2019 빅콘테스트 퓨처스리그
   
 > ## preprocess
 ### 1. train_preprocess_1.R
